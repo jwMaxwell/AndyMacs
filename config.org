@@ -1,0 +1,151 @@
+#+title: Doom Emacs config
+#+author: Joshua Maxwell
+#+property: header-args :tangle config.el :comments link
+#+startup: showeverything
+#+options: toc:2
+
+* Table Of Contents :toc:
+- [[#introduction][Introduction]]
+- [[#identity][Identity]]
+- [[#apperance][Apperance]]
+  - [[#theme][Theme]]
+  - [[#welcome-screen][Welcome Screen]]
+  - [[#misc][Misc]]
+- [[#emacs-configuration][Emacs Configuration]]
+  - [[#trim-code-on-save][Trim Code on Save]]
+  - [[#tab-size][Tab Size]]
+- [[#package-configuration][Package Configuration]]
+  - [[#apps-on-startup][Apps on Startup]]
+  - [[#code-completion][Code Completion]]
+- [[#keybindings][Keybindings]]
+
+* Introduction
+Configuring Doom Emacs is pretty simple. If you want to download new packages,
+you just need to edit your /packages.el/ file. If you want to toggle default
+packages, you can do so pretty easily in /init.el/. All other configurations
+are done in this file.
+
+This config file is written in org mode, which I like to use for literate
+programming. To build this file, open your command palette (Ctrl-Shift-P)
+and type `org-babble-tangle`. This will grab the code from all code blocks
+and chuck them into /config.el/ (which is what Doom Emacs will read.)
+
+If you want to create your own packages (please do), you should store them in
+the ./pkg/ directory. You can also find my ollama-copilot (WIP) package in there
+
+* Identity
+Some functionality uses this to identify you, e.g. GPG configuration, email
+clients, file templates and snippets. It is optional.
+#+begin_src emacs-lisp
+(setq user-full-name "Andrew Maxwell"
+      user-mail-address "whatever@you.want")
+#+end_src
+
+* Apperance
+** Theme
+This is just the default theme. It looks pretty alright.
+#+begin_src emacs-lisp
+(setq doom-theme 'doom-one)
+#+end_src
+
+** Welcome Screen
+This makes Emacs looks a little fancier. Feel free to comment this out for the
+default DOOM welcome screen.
+#+begin_src emacs-lisp
+(setq +doom-dashboard-banner-file "~/.config/doom/resources/emacs-e.png")
+#+end_src
+
+** Misc
+*** Enable Line Numbers
+#+begin_src emacs-lisp
+(setq display-line-numbers-type t)
+#+end_src
+
+*** Maximize Emacs on Launch
+#+begin_src emacs-lisp
+(setq-default frame-resize-pixelwise t)
+(add-hook 'window-setup-hook #'toggle-frame-maximized t)
+#+end_src
+
+* Emacs Configuration
+** Trim Code on Save
+This will trim the extra whitespace in a file on save. I think VScode does this.
+#+begin_src emacs-lisp
+(add-hook 'before-save-hook 'delete-trailing-whitespace)
+#+end_src
+
+** Tab Size
+#+begin_src emacs-lisp
+(setq-default tab-width 2)
+#+end_src
+
+* Package Configuration
+** Apps on Startup
+#+begin_src emacs-lisp
+;; (add-hook 'doom-init-ui-hook #'treemacs)
+(add-hook 'doom-init-ui-hook #'minimap-mode)
+(add-hook 'doom-init-ui-hook #'ergoemacs-mode) ;; Standard-ish keymap
+#+end_src
+
+** Code Completion
+#+begin_src emacs-lisp
+(setq company-idle-delay 0.2
+      company-minimum-prefix-length 2)
+#+end_src
+* Keybindings
+Most of the keybindings will already be set by the /ergoemacs-mode/ package.
+This section is just for adding any additional keybindings that will make
+Emacs feel a bit more like VScode. Edit this as you like.
+#+begin_src emacs-lisp
+(defun my-search-replace ()
+  "Search and replace in current file (cmd h)"
+  (interactive)
+  (let ((start-pos (point)))
+    (goto-char (point-min))
+    (call-interactively 'replace-string)
+    (goto-char start-pos)))
+
+;; FIXME
+(defun my-open-term ()
+  "Toggle a horizontal split containing a terminal."
+  (interactive)
+  (if (eq (current-buffer) (get-buffer "*terminal*"))
+      (delete-window)
+    (if (get-buffer-window "*terminal*")
+        (delete-window (get-buffer-window "*terminal*"))
+      (progn
+        (split-window-below)
+        (other-window 1)
+        (term "/bin/bash")))))
+
+(defun my-mark-next-token ()
+  "Select the next instance of a given token in the current file"
+  (interactive)
+  (if (region-active-p)
+      (mc/mark-next-word-like-this 1)
+    (progn
+      (forward-word)
+      (backward-word)
+      (set-mark (point))
+      (forward-word))))
+
+(defun my-search-across-files ()
+  (interactive)
+  (if (eq (buffer-substring (region-beginning) (region-end)) "")
+      (counsel-rg)
+    (counsel-rg (buffer-substring (region-beginning) (region-end)))))
+
+(with-eval-after-load 'ergoemacs-mode
+  (define-key ergoemacs-user-keymap (kbd "C-S-p") 'counsel-M-x)
+  (define-key ergoemacs-user-keymap (kbd "C-h") 'my-search-replace)
+  (define-key ergoemacs-user-keymap (kbd "C-`") 'my-open-term)
+  (define-key ergoemacs-user-keymap (kbd "C-b") 'treemacs)
+  (define-key ergoemacs-user-keymap (kbd "C-/") 'comment-line)
+  (define-key ergoemacs-user-keymap (kbd "C-p") 'find-file)
+  (define-key ergoemacs-user-keymap (kbd "C-d") 'my-mark-next-token)
+  (define-key ergoemacs-user-keymap (kbd "C-u") 'mc/unmark-next-like-this)
+  (define-key ergoemacs-user-keymap (kbd "C-S-f") 'my-search-across-files)
+  (define-key ergoemacs-user-keymap (kbd "C-g") 'goto-line)
+  (define-key ergoemacs-user-keymap (kbd "<f2>") 'js2r-rename-var)
+  )
+#+end_src
